@@ -120,6 +120,8 @@ hands.onResults(results => {
 
       if (smoothedVelocity > 4 && smoothedVelocity < 40 && !ball.active) {
 
+        alert("DISPAROU");
+
         ball.active = true;
 
         let direction = (handX - canvas.width / 2) / 40;
