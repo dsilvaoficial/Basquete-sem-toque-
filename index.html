@@ -106,33 +106,24 @@ hands.onResults(results => {
 
   handX = x;
 
-  if (lastY !== null) {
+  // 👉 GESTO NOVO (MUITO MAIS ESTÁVEL)
+if (!ball.active && gestureCooldown <= 0) {
 
-    let velocity = lastY - y;
+  // se a mão subir para metade da tela
+  if (y < canvas.height * 0.45) {
 
-    // suavização melhor
-    smoothedVelocity = smoothedVelocity * 0.6 + velocity * 0.4;
+    alert("DISPAROU"); // teste
 
-    console.log("Vel:", smoothedVelocity);
+    ball.active = true;
 
-    // evita spam de arremesso
-    if (gestureCooldown <= 0) {
+    let direction = (handX - canvas.width / 2) / 40;
 
-      if (smoothedVelocity > 4 && smoothedVelocity < 40 && !ball.active) {
+    ball.vx = direction;
+    ball.vy = -15;
 
-        alert("DISPAROU");
-
-        ball.active = true;
-
-        let direction = (handX - canvas.width / 2) / 40;
-
-        ball.vx = direction;
-        ball.vy = -Math.min(20, smoothedVelocity * 2);
-
-        gestureCooldown = 15; // trava por alguns frames
-      }
-    }
+    gestureCooldown = 20;
   }
+}
 
   lastY = y;
 });
