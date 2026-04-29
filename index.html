@@ -84,14 +84,20 @@ hands.onResults(results => {
     const y = hand[0].y * canvas.height;
 
     if (lastY !== null) {
-      velocity = lastY - y;
+  velocity = lastY - y;
 
-      // gesto de arremesso
-      if (velocity > 20 && !ball.active) {
-        ball.active = true;
-        ball.vx = (Math.random() - 0.5) * 10;
-        ball.vy = -15;
-      }
+  // debug (mostra na tela)
+  console.log("Velocidade:", velocity);
+
+  if (velocity > 6 && !ball.active) {
+    ball.active = true;
+
+    // força baseada no movimento
+    ball.vy = -Math.min(20, velocity * 1.5);
+
+    // direção mais controlada
+    ball.vx = (Math.random() - 0.5) * 6;
+  }
     }
 
     lastY = y;
