@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Basket Motion Game</title>
+<title>Basket Motion Pro</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
@@ -12,23 +12,34 @@
 body {
   margin: 0;
   overflow: hidden;
-  background: #111;
-  color: white;
+  background: black;
   font-family: Arial;
+  color: white;
 }
 
 video {
   position: absolute;
-  opacity: 0.2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.25;
 }
 
 canvas {
   position: absolute;
 }
+
+#score {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  font-size: 22px;
+}
 </style>
 </head>
 <body>
 
+<div id="score">Pontos: 0</div>
 <video id="video" autoplay playsinline></video>
 <canvas id="canvas"></canvas>
 
@@ -36,39 +47,40 @@ canvas {
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+const scoreEl = document.getElementById("score");
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// ------------------ BOLA ------------------
+// ------------------ ESTADO ------------------
+let score = 0;
+
 let ball = {
   x: canvas.width / 2,
-  y: canvas.height - 100,
+  y: canvas.height - 120,
   vx: 0,
   vy: 0,
-  radius: 15,
+  radius: 18,
   active: false
 };
 
-// ------------------ CESTA ------------------
 const hoop = {
-  x: canvas.width / 2 - 50,
-  y: 150,
-  width: 100,
-  height: 10
+  x: canvas.width / 2 - 60,
+  y: 140,
+  width: 120,
+  height: 12
 };
 
-// ------------------ GRAVIDADE ------------------
 const gravity = 0.5;
 
-// ------------------ CONTROLE DE GESTO ------------------
+// ------------------ GESTO ------------------
 let lastY = null;
-let velocity = 0;
+let smoothedVelocity = 0;
+let handX = 0;
 
 // ------------------ MEDIAPIPE ------------------
 const hands = new Hands({
-  locateFile: (file) =>
-    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+  locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
 });
 
 hands.setOptions({
@@ -81,23 +93,28 @@ hands.onResults(results => {
   if (results.multiHandLandmarks.length > 0) {
     const hand = results.multiHandLandmarks[0];
 
-    const y = hand[0].y * canvas.height;
+    // posição da palma
+    const x = hand[9].x * canvas.width;
+    const y = hand[9].y * canvas.height;
+
+    handX = x;
 
     if (lastY !== null) {
-  velocity = lastY - y;
+      let velocity = lastY - y;
 
-  // debug (mostra na tela)
-  console.log("Velocidade:", velocity);
+      // suavização (evita ruído)
+      smoothedVelocity = smoothedVelocity * 0.7 + velocity * 0.3;
 
-  if (velocity > 6 && !ball.active) {
-    ball.active = true;
+      // disparo do arremesso
+      if (smoothedVelocity > 6 && !ball.active) {
+        ball.active = true;
 
-    // força baseada no movimento
-    ball.vy = -Math.min(20, velocity * 1.5);
+        // direção baseada na mão
+        let direction = (handX - canvas.width / 2) / 50;
 
-    // direção mais controlada
-    ball.vx = (Math.random() - 0.5) * 6;
-  }
+        ball.vx = direction;
+        ball.vy = -Math.min(18, smoothedVelocity * 1.5);
+      }
     }
 
     lastY = y;
@@ -121,31 +138,45 @@ function update() {
     ball.x += ball.vx;
     ball.y += ball.vy;
 
-    // reset
-    if (ball.y > canvas.height) {
-      ball.active = false;
-      ball.x = canvas.width / 2;
-      ball.y = canvas.height - 100;
-      ball.vx = 0;
-      ball.vy = 0;
-    }
-
-    // colisão com cesta
+    // cesta (detecção melhorada)
     if (
+      ball.y < hoop.y + hoop.height &&
+      ball.y > hoop.y &&
       ball.x > hoop.x &&
       ball.x < hoop.x + hoop.width &&
-      ball.y > hoop.y &&
-      ball.y < hoop.y + hoop.height
+      ball.vy > 0 // só conta descendo
     ) {
-      alert("🏀 CESTA!");
+      score++;
+      scoreEl.innerText = "Pontos: " + score;
+
       ball.active = false;
+      resetBall();
+    }
+
+    // reset se cair
+    if (ball.y > canvas.height) {
+      ball.active = false;
+      resetBall();
     }
   }
+}
+
+function resetBall() {
+  ball.x = canvas.width / 2;
+  ball.y = canvas.height - 120;
+  ball.vx = 0;
+  ball.vy = 0;
 }
 
 // ------------------ DRAW ------------------
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // sombra
+  ctx.beginPath();
+  ctx.arc(ball.x, canvas.height - 40, ball.radius * 1.5, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
+  ctx.fill();
 
   // bola
   ctx.beginPath();
@@ -153,9 +184,16 @@ function draw() {
   ctx.fillStyle = "orange";
   ctx.fill();
 
-  // cesta
+  // aro
   ctx.fillStyle = "red";
   ctx.fillRect(hoop.x, hoop.y, hoop.width, hoop.height);
+
+  // mira (linha da mão)
+  ctx.beginPath();
+  ctx.moveTo(canvas.width / 2, canvas.height);
+  ctx.lineTo(handX, 0);
+  ctx.strokeStyle = "rgba(255,255,255,0.2)";
+  ctx.stroke();
 }
 
 // ------------------ LOOP ------------------
