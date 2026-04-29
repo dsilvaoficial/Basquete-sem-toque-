@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Basket Motion PRO</title>
+<title>Basket Motion FINAL</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
@@ -22,7 +22,7 @@ video {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.35;
+  opacity: 0.4;
   filter: brightness(1.5) contrast(1.2);
 }
 
@@ -41,18 +41,31 @@ canvas {
   position: absolute;
   top: 50px;
   left: 20px;
-  font-size: 16px;
   color: yellow;
+}
+
+#shootBtn {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 15px 25px;
+  font-size: 18px;
+  border: none;
+  background: orange;
+  border-radius: 10px;
 }
 </style>
 </head>
 <body>
 
 <div id="score">Pontos: 0</div>
-<div id="debug">Debug...</div>
+<div id="debug">Iniciando...</div>
 
 <video id="video" autoplay playsinline></video>
 <canvas id="canvas"></canvas>
+
+<button id="shootBtn">ARREMESSAR</button>
 
 <script>
 const video = document.getElementById("video");
@@ -60,6 +73,7 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const scoreEl = document.getElementById("score");
 const debug = document.getElementById("debug");
+const shootBtn = document.getElementById("shootBtn");
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -85,69 +99,86 @@ const hoop = {
 
 const gravity = 0.5;
 
-// ---------------- GESTO ----------------
-let lastY = null;
-let state = "idle"; // idle → subindo → descendo
 let handX = canvas.width / 2;
 
-// ---------------- MEDIAPIPE ----------------
-const hands = new Hands({
-  locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-});
-
-hands.setOptions({
-  maxNumHands: 1,
-  minDetectionConfidence: 0.5,
-  minTrackingConfidence: 0.5
-});
-
-hands.onResults(results => {
-hands.onResults(results => {
-
-  if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
-    debug.innerText = "SEM MÃO";
-    return;
-  }
-
-  const hand = results.multiHandLandmarks[0];
-
-  const x = hand[9].x * canvas.width;
-  const y = hand[9].y * canvas.height;
-
-  handX = x;
-
-  debug.innerText = "MÃO DETECTADA ✔️";
-
-  // 👉 TESTE SIMPLES (SEM GESTO)
+// ---------------- FUNÇÃO DE ARREMESSO ----------------
+function shoot() {
   if (!ball.active) {
     ball.active = true;
 
     let direction = (handX - canvas.width / 2) / 50;
 
     ball.vx = direction;
-    ball.vy = -12;
+    ball.vy = -14;
+
+    debug.innerText = "ARREMESSO ✔️";
   }
+}
+
+// botão fallback
+shootBtn.onclick = shoot;
+
+// ---------------- CÂMERA (fallback direto) ----------------
+navigator.mediaDevices.getUserMedia({ video: true })
+.then(stream => {
+  video.srcObject = stream;
+  debug.innerText = "Câmera OK";
+
+  startMediaPipe();
+})
+.catch(err => {
+  debug.innerText = "Erro câmera ❌";
+  alert(err);
 });
 
-    debug.innerText = "dy: " + dy.toFixed(2) + " | estado: " + state;
-  }
+// ---------------- MEDIAPIPE ----------------
+function startMediaPipe() {
 
-  lastY = y;
-});
+  const hands = new Hands({
+    locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+  });
 
-// ---------------- CAMERA ----------------
-const camera = new Camera(video, {
-  onFrame: async () => {
-    await hands.send({ image: video });
-  },
-  width: 640,
-  height: 480
-});
-camera.start();
+  hands.setOptions({
+    maxNumHands: 1,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5
+  });
+
+  hands.onResults(results => {
+
+    if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+      debug.innerText = "SEM MÃO";
+      return;
+    }
+
+    const hand = results.multiHandLandmarks[0];
+
+    const x = hand[9].x * canvas.width;
+    const y = hand[9].y * canvas.height;
+
+    handX = x;
+
+    debug.innerText = "MÃO ✔️ X: " + Math.floor(x);
+
+    // 👉 disparo simples (funciona sempre)
+    if (y < canvas.height * 0.4) {
+      shoot();
+    }
+  });
+
+  const camera = new Camera(video, {
+    onFrame: async () => {
+      await hands.send({ image: video });
+    },
+    width: 640,
+    height: 480
+  });
+
+  camera.start();
+}
 
 // ---------------- UPDATE ----------------
 function update() {
-
   if (ball.active) {
     ball.vy += gravity;
     ball.x += ball.vx;
