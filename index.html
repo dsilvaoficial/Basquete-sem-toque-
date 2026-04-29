@@ -102,10 +102,10 @@ hands.setOptions({
 });
 
 hands.onResults(results => {
+hands.onResults(results => {
 
   if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
     debug.innerText = "SEM MÃO";
-    state = "idle";
     return;
   }
 
@@ -116,31 +116,18 @@ hands.onResults(results => {
 
   handX = x;
 
-  if (lastY !== null) {
+  debug.innerText = "MÃO DETECTADA ✔️";
 
-    let dy = lastY - y;
+  // 👉 TESTE SIMPLES (SEM GESTO)
+  if (!ball.active) {
+    ball.active = true;
 
-    // ---------------- DETECÇÃO DE GESTO ----------------
+    let direction = (handX - canvas.width / 2) / 50;
 
-    if (dy > 2) {
-      state = "subindo";
-    }
-
-    if (state === "subindo" && dy < -2) {
-      state = "descendo";
-
-      // 👉 DISPARO REAL
-      if (!ball.active) {
-        ball.active = true;
-
-        let direction = (handX - canvas.width / 2) / 50;
-
-        ball.vx = direction;
-        ball.vy = -14;
-
-        debug.innerText = "ARREMESSO ✔️";
-      }
-    }
+    ball.vx = direction;
+    ball.vy = -12;
+  }
+});
 
     debug.innerText = "dy: " + dy.toFixed(2) + " | estado: " + state;
   }
