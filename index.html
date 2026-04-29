@@ -160,6 +160,16 @@ function startMediaPipe() {
 
     debug.innerText = "MÃO ✔️ X: " + Math.floor(x);
 
+    for (let i = 0; i < hand.length; i++) {
+  let px = hand[i].x * canvas.width;
+  let py = hand[i].y * canvas.height;
+
+  ctx.beginPath();
+  ctx.arc(px, py, 5, 0, Math.PI * 2);
+  ctx.fillStyle = "lime";
+  ctx.fill();
+    }
+
     // 👉 disparo simples (funciona sempre)
     if (y < canvas.height * 0.4) {
       shoot();
