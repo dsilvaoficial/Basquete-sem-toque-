@@ -13,7 +13,6 @@ body {
   margin: 0;
   overflow: hidden;
   background: black;
-  font-family: Arial;
 }
 
 video {
@@ -21,8 +20,6 @@ video {
   width: 100%;
   height: 100%;
   object-fit: cover;
-
-  /* 🔥 AJUSTE DE LUZ (menos estourado) */
   filter: brightness(0.9) contrast(1.1);
   opacity: 0.5;
 }
@@ -36,25 +33,12 @@ canvas {
   top: 20px;
   left: 20px;
   color: yellow;
-  font-size: 16px;
-}
-
-#btn {
-  position: absolute;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 15px;
-  background: orange;
-  border: none;
-  border-radius: 10px;
 }
 </style>
 </head>
 <body>
 
 <div id="debug">Iniciando...</div>
-<button id="btn">ARREMESSAR</button>
 
 <video id="video" autoplay playsinline></video>
 <canvas id="canvas"></canvas>
@@ -64,7 +48,6 @@ const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const debug = document.getElementById("debug");
-const btn = document.getElementById("btn");
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -78,8 +61,15 @@ let ball = {
   active: false
 };
 
+const hoop = {
+  x: canvas.width / 2 - 50,
+  y: 120,
+  width: 100,
+  height: 10
+};
+
 const gravity = 0.5;
-let handY = null;
+let lastY = null;
 
 // ---------------- ARREMESSO ----------------
 function shoot() {
@@ -90,8 +80,6 @@ function shoot() {
   }
 }
 
-btn.onclick = shoot;
-
 // ---------------- MEDIAPIPE ----------------
 const hands = new Hands({
   locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
@@ -99,21 +87,16 @@ const hands = new Hands({
 
 hands.setOptions({
   maxNumHands: 1,
-
-  /* 🔥 MAIS LEVE PRO SEU CELULAR */
   modelComplexity: 0,
-
   minDetectionConfidence: 0.4,
   minTrackingConfidence: 0.4
 });
 
 hands.onResults(results => {
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
   if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
     debug.innerText = "SEM MÃO ❌";
-    handY = null;
+    lastY = null;
     return;
   }
 
@@ -122,25 +105,14 @@ hands.onResults(results => {
 
   debug.innerText = "MÃO DETECTADA ✔️";
 
-  // desenha poucos pontos (leve)
-  for (let i = 0; i < hand.length; i += 4) {
-    let px = hand[i].x * canvas.width;
-    let py = hand[i].y * canvas.height;
-
-    ctx.beginPath();
-    ctx.arc(px, py, 5, 0, Math.PI * 2);
-    ctx.fillStyle = "lime";
-    ctx.fill();
-  }
-
-  // 👉 gesto simples (subiu a mão)
-  if (handY !== null) {
-    if (y < handY - 20) {
+  // gesto simples (subiu a mão)
+  if (lastY !== null) {
+    if (y < lastY - 20) {
       shoot();
     }
   }
 
-  handY = y;
+  lastY = y;
 });
 
 // ---------------- CAMERA ----------------
@@ -148,7 +120,7 @@ const camera = new Camera(video, {
   onFrame: async () => {
     await hands.send({ image: video });
   },
-  width: 320,   // 🔥 mais leve
+  width: 320,
   height: 240
 });
 
@@ -157,10 +129,26 @@ camera.start();
 // ---------------- LOOP ----------------
 function loop() {
 
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // bola
   if (ball.active) {
     ball.vy += gravity;
     ball.y += ball.vy;
 
+    // cesta
+    if (
+      ball.x > hoop.x &&
+      ball.x < hoop.x + hoop.width &&
+      ball.y < hoop.y + hoop.height &&
+      ball.y > hoop.y &&
+      ball.vy > 0
+    ) {
+      ball.active = false;
+      ball.y = canvas.height - 100;
+    }
+
+    // caiu
     if (ball.y > canvas.height) {
       ball.active = false;
       ball.y = canvas.height - 100;
@@ -169,9 +157,13 @@ function loop() {
 
   // desenhar bola
   ctx.beginPath();
-  ctx.arc(canvas.width / 2, ball.y, 20, 0, Math.PI * 2);
+  ctx.arc(ball.x, ball.y, 20, 0, Math.PI * 2);
   ctx.fillStyle = "orange";
   ctx.fill();
+
+  // desenhar cesta
+  ctx.fillStyle = "red";
+  ctx.fillRect(hoop.x, hoop.y, hoop.width, hoop.height);
 
   requestAnimationFrame(loop);
 }
